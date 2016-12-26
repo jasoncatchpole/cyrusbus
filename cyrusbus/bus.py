@@ -155,6 +155,10 @@ class Bus(object):
         :param key: The event key to which the subscriptions should be triggered.
         :param *args: Additional arguments to give the callback functions.
         """
+        if '*' in self.subscriptions:
+            for subscriber in self.subscriptions['*']:
+                subscriber['callback'](self, key, *args, **kwargs)
+
         if not self.has_any_subscriptions(key):
             return self
 
