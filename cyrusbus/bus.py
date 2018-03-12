@@ -1,19 +1,14 @@
-#!/usr/bin/env python
-#-*- coding:utf-8 -*-
+#!/usr/bin/env python3
 
-class Bus(object):
+
+class Bus:
 
     _instances = {}
 
-    def __new__(cls, *args, **kwargs):
-        instance = object.__new__(cls, *args, **kwargs)
-        if str(*args) is not '':
-            Bus._instances[str(*args)] = instance
-        return instance
-
-    def __init__(self):
+    def __init__(self, name=None):
+        if name:
+            Bus._instances[name] = self
         self.reset()
-
 
     @staticmethod
     def get_or_create(name):
@@ -26,7 +21,7 @@ class Bus(object):
         bus = Bus.get_bus(name)
 
         if bus is None:
-            return Bus.__new__(Bus, name)
+            return Bus(name)
 
         return bus
 
@@ -38,13 +33,7 @@ class Bus(object):
         :param name: The name of the bus instance that should be returned.
         :return: The bus instance that was created with the given name or None if the name given is not connected with a bus.
         """
-        try:
-            for bus_name in Bus._instances.keys():
-                if bus_name == name:
-                    return Bus._instances[bus_name]
-            return None
-        except Exception:
-            return None
+        return Bus._instances.get(name)
 
     @staticmethod
     def get_bus_name(instance):
@@ -54,7 +43,7 @@ class Bus(object):
         :param instance: The bus, which name should be returned.
         :return: The name of the bus instance.
         """
-        for instances_key, bus_instance in Bus._instances.iteritems():
+        for instances_key, bus_instance in Bus._instances.items():
             if instance is bus_instance:
                 return instances_key
         return None
@@ -67,17 +56,18 @@ class Bus(object):
         :param name: The name of the bus instance.
         :return: True if the bus was successfully deleted.
         """
+
         try:
             del Bus._instances[name]
-            return True
-        except Exception:
-            return False
+        except KeyError:
+            raise KeyError("Bus called {} not found".format(name))
+
 
     def subscribe(self, key, callback, force=False):
         """
         This method subscribes an function to an eventkey.
 
-        :param key: The event key. When someone published an event with the same key, this subscription will be triggered.
+        :param key: The event key. When someone published an event with the same key, this subscription will be triggered. Special key '*' can be used to subscribe to all events.
         :param callback: The callback function. This function will be executed when the given event is published.
         :param force: Force insert to execution queue. If True: the callback will be executed, even if the callback is subscribed more than once.
         :return: The busobject.

@@ -8,9 +8,9 @@ It is worth noting that CyrusBus is 100% independent from other libraries and is
 Installing CyrusBus
 -------------------
 
-You can install CyrusBus from PyPI (http://pypi.python.org/pypi), using easy_install or PIP::
+You can install CyrusBus from PyPI (http://pypi.python.org/pypi), using PIP::
+
     pip install cyrusbus
-    easy_install cyrusbus
 
 That should be it. To verify it's installed, open the python interpreter and type::
 
@@ -54,6 +54,15 @@ The second parameter is the callback function. This is the function that will ge
 You can also supply a third parameter called force. This parameter is useful if you want to subcribe to something twice. This means that cyrusbus will call your callback method as many times as you subscribe. Just use this syntax::
 
     bus.subscribe("event.key", callback, force=True)
+
+You can also subscribe to all events on the bus by using event key ``"*"``::
+
+    bus.subscribe("*", my_callback)
+
+Catch all event callback also gets the event key as its second argument::
+
+    def my_callback(self, bus, key, whatever, arguments, your, function, requires):
+        //does something with the arguments.
 
 Unsubscribe
 ===========

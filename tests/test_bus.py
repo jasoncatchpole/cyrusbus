@@ -1,9 +1,9 @@
-#!/usr/bin/env python
-#-*- coding:utf-8 -*-
+#!/usr/bin/env python3
 
 import unittest
 
 from cyrusbus import Bus
+
 
 class TestBus(unittest.TestCase):
     def callback(self, bus, argument):
@@ -43,6 +43,17 @@ class TestBus(unittest.TestCase):
         self.bus.subscribe('test.key', self.callback).subscribe('test.key', self.callback, force=True)
 
         assert len(self.bus.subscriptions['test.key']) == 2, len(self.bus.subscriptions['test.key'])
+
+    def test_subscribe_to_all_events(self):
+        self.bus.subscribe('*', self.callback)
+
+        self.bus.publish('test.key1')
+        assert self.has_run and self.argument == 'test.key1'
+
+        self.has_run = False
+        self.bus.publish('test.key2')
+        assert self.has_run and self.argument == 'test.key2'
+
 
     def test_unsubscribe_is_chainable(self):
         bus = self.bus.unsubscribe('test.key', self.callback)
@@ -161,6 +172,12 @@ class TestBus(unittest.TestCase):
         assert bus_a is not bus_c
         assert bus_d is not bus_a
 
+    def test_get_or_create_only_once(self):
+        bus_a = Bus.get_or_create('bus_a')
+        bus_b = Bus.get_or_create('bus_a')
+
+        assert bus_a is bus_b
+
     def test_delete_bus_instances(self):
         bus_x = Bus.get_or_create('bus_x')
 
@@ -170,11 +187,23 @@ class TestBus(unittest.TestCase):
 
         assert bus_x not in Bus._instances.values()
 
+        with self.assertRaises(KeyError):
+            Bus.delete_bus('bus_x')
+
     def test_bus_is_not_specific(self):
         bus_y = Bus()
         bus_z = Bus.get_or_create('bus_z')
 
         assert bus_y is not bus_z
+
+    def test_get_bus_name_none(self):
+        bus_name = Bus.get_bus_name(self.bus)
+        assert bus_name is None
+
+    def test_get_bus_name_string(self):
+        bus_x = Bus('bus_x')
+        assert Bus.get_bus_name(bus_x) == 'bus_x'
+
 
 if __name__ == '__main__':
     unittest.main()

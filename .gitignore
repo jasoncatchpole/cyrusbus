@@ -2,3 +2,5 @@
 .coverage
 cyrusbus.egg-info/
 dist
+.idea/
+.pytest_cache/
