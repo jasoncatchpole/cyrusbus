@@ -160,3 +160,7 @@ class Bus:
         Resets the eventbus. All subscribers will be cleared.
         """
         self.subscriptions = {}
+
+
+    def __repr__(self):
+        return "<Bus '{}' id '{}'>".format(Bus.get_bus_name(self), hex(id(self)))
