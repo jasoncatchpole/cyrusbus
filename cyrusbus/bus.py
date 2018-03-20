@@ -149,7 +149,7 @@ class Bus:
             for subscriber in self.subscriptions['*']:
                 subscriber['callback'](self, key, *args, **kwargs)
 
-        if not self.has_any_subscriptions(key):
+        if key not in self.subscriptions:
             return self
 
         for subscriber in self.subscriptions[key]:
