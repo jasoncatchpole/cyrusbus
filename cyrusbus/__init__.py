@@ -1,3 +1,4 @@
+# pylint: disable-all
 from cyrusbus.bus import Bus
 
 __version__ = '0.1.0'

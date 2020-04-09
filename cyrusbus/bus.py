@@ -1,3 +1,4 @@
+# pylint: disable-all
 #!/usr/bin/env python3
 
 
@@ -149,11 +150,18 @@ class Bus:
             for subscriber in self.subscriptions['*']:
                 subscriber['callback'](self, key, *args, **kwargs)
 
-        if key not in self.subscriptions:
-            return self
+        key_found = False
 
-        for subscriber in self.subscriptions[key]:
-            subscriber['callback'](self, *args, **kwargs)
+        # iterate over all subscriptions and check to see whether we have any
+        # matches between the specified key and any 
+        for subscriber_key in self.subscriptions.keys(): # look through all keys in the dictionary
+            if key.startswith(subscriber_key):           # see if given subscription matches any portion from start of key
+                key_found = True
+                for subscriber in self.subscriptions[subscriber_key]:
+                    subscriber['callback'](self, *args, **kwargs)
+
+        if not key_found:
+            return self
 
     def reset(self):
         """

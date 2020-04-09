@@ -1,3 +1,4 @@
+# pylint: disable-all
 #!/usr/bin/env python3
 
 import unittest
@@ -10,11 +11,17 @@ class TestBus(unittest.TestCase):
         self.called_bus = bus
         self.has_run = True
         self.argument = argument
+        self.callback_count = self.callback_count + 1
 
     def setUp(self):
         self.bus = Bus()
+        self.reset_test()
+
+    def reset_test(self):
         self.has_run = False
         self.called_bus = None
+        self.argument = ""
+        self.callback_count = 0
 
     def test_can_haz_bus(self):
         assert self.bus
@@ -204,6 +211,51 @@ class TestBus(unittest.TestCase):
         bus_x = Bus('bus_x')
         assert Bus.get_bus_name(bus_x) == 'bus_x'
 
+    def test_subkey_subscriptions_simple(self):
+        self.bus.subscribe('level1a.level2a', self.callback)
+
+        # we have subscribed to a parent level thus we should receive this publish
+        self.bus.publish('level1a.level2a.level3a', argument="something")
+
+        assert self.has_run
+        assert self.argument == "something"
+        assert self.called_bus == self.bus
+        assert self.callback_count == 1
+
+    def test_subkey_subscriptions_no_start_match(self):
+        # make sure that we only get publishes if the start of the key is an exact match
+        self.reset_test()
+
+        self.bus.subscribe('level1a.level2a', self.callback)
+        self.bus.publish('blah.level1a.level2a.level3a', argument="something")
+
+        assert not self.has_run
+        assert self.argument == ""
+        assert self.called_bus == None
+        assert self.callback_count == 0
+
+    def test_subkey_subscriptions_complex(self):
+        self.reset_test()
+        self.bus.subscribe('level1a.level2a', self.callback)
+        self.bus.subscribe('level1a.level2a.level3a', self.callback)
+        self.bus.subscribe('level1a.level2a.level3b', self.callback)
+
+        # we have subscribed to a parent level thus we should receive this publish
+        self.bus.publish('level1a.level2a.level3a', argument="something")
+
+        assert self.has_run
+        assert self.argument == "something"
+        assert self.called_bus == self.bus
+        assert self.callback_count == 2
+
+        # following test should get callback for level1a.level2a and level1a.level2a.level3a
+        self.reset_test()
+        self.bus.publish('level1a.level2a.level3b', argument="something2")
+
+        assert self.has_run
+        assert self.argument == "something2"
+        assert self.called_bus == self.bus
+        assert self.callback_count == 2
 
 if __name__ == '__main__':
     unittest.main()
