@@ -2,7 +2,8 @@
 #!/usr/bin/env python3
 
 import unittest
-
+import threading
+import time
 from cyrusbus import Bus
 
 
@@ -256,6 +257,209 @@ class TestBus(unittest.TestCase):
         assert self.argument == "something2"
         assert self.called_bus == self.bus
         assert self.callback_count == 2
+
+        self.reset_test()
+        self.bus.subscribe('level1a', self.callback)
+        self.bus.publish('level1a.level2b', argument="something2")
+
+        assert self.has_run
+        assert self.argument == "something2"
+        assert self.called_bus == self.bus
+        assert self.callback_count == 1
+
+    def test_messages_across_threads_thread_subscribe1(self):
+        # in this example we create a thread and then from outside that thread we create a subscription to one of the
+        # threads functions
+        bus_a = Bus.get_or_create('bus_a')
+        new_thread = ThreadClass1()
+        new_thread.start()
+
+        bus_a.subscribe('level1a.level2a', new_thread.message_callback)
+
+        # we have subscribed to a parent level thus we should receive this publish
+        bus_a.publish('level1a.level2a.level3a', argument="hello")
+
+        #assert self.has_run
+        assert new_thread.get_latest_argument() == "hello"
+        assert new_thread.get_bus() == bus_a
+        assert new_thread.get_latest_counter() == 1
+
+        new_thread.stop()
+
+    def test_messages_across_threads_thread_subscribe2(self):
+        # in this example we create a thread and then from outside that thread we create a subscription to one of the
+        # threads functions
+        bus_a = Bus.get_or_create('bus_a')
+        new_thread = ThreadClass2()
+        new_thread.start()
+
+        while not new_thread.running():
+            time.sleep(0.05)
+
+        # we have subscribed to a parent level thus we should receive this publish
+        bus_a.publish('level1a.level2a.level3a', argument="hello_there")
+
+        new_thread.stop()
+
+        #assert self.has_run
+        assert new_thread.get_latest_argument() == "hello_there"
+        assert new_thread.get_bus() == bus_a
+        assert new_thread.get_latest_counter() == 1
+
+    def test_messages_across_threads_thread_publish(self):
+        # in this example we create a thread and then from inside that thread we perform a publish which eventuates
+        # in this main thread
+        self.reset_test()
+        bus_a = Bus.get_or_create('bus_a')
+        bus_a.subscribe('level1a.level2a', self.callback)
+
+        new_thread = ThreadClass3()
+        new_thread.start()
+
+        while not new_thread.running():
+            time.sleep(0.05)
+            
+        new_thread.stop()
+
+        assert self.has_run
+        assert self.argument == "hello from thread"
+        assert self.called_bus == bus_a
+        assert self.callback_count == 1
+
+class ThreadClass1(threading.Thread):
+    """Inherits from Thread.
+    This instance of the thread class has the subscription performed for it in another thread"""
+
+    def __init__(self):
+        super(ThreadClass1, self).__init__()
+        self._should_stop = threading.Event()
+        self._is_running = threading.Event()
+        self._callback_counter = 0
+        self._latest_argument = ""
+        self._bus = None
+
+    def run(self):
+        print('Starting the Thread')
+        self._is_running.set()
+        while not self._should_stop.is_set():
+            print(f'Thread Hello. Stopped = {self.stopped()}')
+            time.sleep(0.05)
+            print('Finishing the Thread')
+
+    def stopped(self) -> bool:
+        return self._should_stop.is_set()
+
+    def running(self) -> bool:
+        return self._is_running.is_set()
+
+    def stop(self):
+        print('Signalling the thread to quit processing')
+        self._should_stop.set()
+
+    def message_callback(self, bus, argument):
+        self._bus = bus
+        self._latest_argument = argument
+        self._callback_counter = self._callback_counter + 1
+
+    def get_latest_argument(self) -> str:
+        return self._latest_argument
+
+    def get_latest_counter(self) -> int:
+        return self._callback_counter
+
+    def get_bus(self) -> Bus:
+        return self._bus
+
+class ThreadClass2(threading.Thread):
+    """Inherits from Thread.
+    This instance of the thread class performs the subscribe in the run loop of the thread"""
+
+    def __init__(self):
+        super(ThreadClass2, self).__init__()
+        self._should_stop = threading.Event()
+        self._is_running = threading.Event()
+        self._callback_counter = 0
+        self._latest_argument = ""
+        self._bus = Bus.get_or_create('bus_a')
+
+    def run(self):
+        print('Starting the Thread')
+        self._is_running.set()
+        self._bus.subscribe('level1a.level2a', self.message_callback)
+        while not self._should_stop.is_set():
+            print(f'Thread Hello. Stopped = {self.stopped()}')
+            time.sleep(0.05)
+            print('Finishing the Thread')
+
+    def stopped(self) -> bool:
+        return self._should_stop.is_set()
+
+    def running(self) -> bool:
+        return self._is_running.is_set()
+
+    def stop(self):
+        print('Signalling the thread to quit processing')
+        self._should_stop.set()
+
+    def message_callback(self, bus, argument):
+        print(f'Got a message callback with argument {argument}')
+        self._latest_argument = argument
+        self._callback_counter = self._callback_counter + 1
+
+    def get_latest_argument(self) -> str:
+        return self._latest_argument
+
+    def get_latest_counter(self) -> int:
+        return self._callback_counter
+
+    def get_bus(self) -> Bus:
+        return self._bus
+
+class ThreadClass3(threading.Thread):
+    """Inherits from Thread.
+    This instance of the thread class performs a publish in the run loop of the thread. This publish is caught
+    in another thread's callback"""
+
+    def __init__(self):
+        super(ThreadClass3, self).__init__()
+        self._should_stop = threading.Event()
+        self._is_running = threading.Event()
+        self._callback_counter = 0
+        self._latest_argument = ""
+        self._bus = Bus.get_or_create('bus_a')
+
+    def run(self):
+        print('Starting the Thread')
+        self._is_running.set()
+        self._bus.publish('level1a.level2a.level3a', argument="hello from thread")
+        while not self._should_stop.is_set():
+            print(f'Thread Hello. Stopped = {self.stopped()}')
+            time.sleep(0.05)
+            print('Finishing the Thread')
+
+    def stopped(self) -> bool:
+        return self._should_stop.is_set()
+
+    def running(self) -> bool:
+        return self._is_running.is_set()
+
+    def stop(self):
+        print('Signalling the thread to quit processing')
+        self._should_stop.set()
+
+    def message_callback(self, bus, argument):
+        print(f'Got a message callback with argument {argument}')
+        self._latest_argument = argument
+        self._callback_counter = self._callback_counter + 1
+
+    def get_latest_argument(self) -> str:
+        return self._latest_argument
+
+    def get_latest_counter(self) -> int:
+        return self._callback_counter
+
+    def get_bus(self) -> Bus:
+        return self._bus
 
 if __name__ == '__main__':
     unittest.main()
