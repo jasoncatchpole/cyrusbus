@@ -112,6 +112,44 @@ Reset
 Resetting the bus has proven very useful in the tests. Since it's already implemented we'll document it here. Resetting the bus means it "forgets" all subscriptions. You can reset the bus using this syntax::
 
     bus.reset();
+    
+The subscription hierarchy
+=====
+
+Another mode of operation supported is to exploit a hierarchy of subscriptions. This is best shown by an example::
+
+    def my_level1a_callback(self, bus, whatever, arguments, your, function, requires):
+        //Called for any level1a event
+        
+    def my_level2a_callback(self, bus, whatever, arguments, your, function, requires):
+        //Called for any level2a event
+        
+    def my_level3a_callback(self, bus, whatever, arguments, your, function, requires):
+        //Called for any level3a event
+        
+    // setup all the subscribes
+    bus.subscribe("level1a", my_level1a_callback)
+    bus.subscribe("level1a.level2a", my_level2a_callback)
+    bus.subscribe("level1a.level2a.level3a", my_level3a_callback)
+    
+At this point we perform some publish operations and indicate which callbacks are called::
+
+    // only "my_level1a_callback" will be called
+    bus.publish("level1a", some="key", has="some", cool="value")
+    
+    // "my_level1a_callback" AND "my_level2a_callback" will be called
+    bus.publish("level1a.level2a", some="key", has="some", cool="value")
+    
+    // "my_level1a_callback", "my_level2a_callback", AND "my_level3a_callback" will be called
+    bus.publish("level1a.level2a.level3a", some="key", has="some", cool="value")
+    
+    // Only "my_level1a_callback" will be called as "level2b" does not match "level2a" for "my_level2a_callback"
+    bus.publish("level1a.level2B", some="key", has="some", cool="value")
+    
+Only the start of the publish key matters when matching against a subscription. For example::
+
+    // Only "my_level1a_callback" will be called
+    bus.publish("level1a.BUT_NOT.level2a.level3a", some="key", has="some", cool="value")
 
 Feature Request, Suggestions, Feedback
 --------------------------------------
